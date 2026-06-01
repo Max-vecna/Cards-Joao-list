@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Habilidades RPG</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        body { font-family: system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen pb-20">
+
+    <!-- ================= VIEW 1: LISTA DE PERSONAGENS ================= -->
+    <div id="view-characters" class="block">
+        <header class="bg-slate-900 border-b border-slate-800 p-6 sm:p-10 text-center">
+            <h1 class="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-2">
+                Grimório RPG
+            </h1>
+            <p class="text-slate-400 text-sm sm:text-base">Gerencie seus personagens e grimórios</p>
+        </header>
+
+        <main class="max-w-3xl mx-auto p-4 sm:p-6 mt-6">
+            <!-- Add Character Form -->
+            <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl mb-8">
+                <form id="add-char-form" class="flex gap-2">
+                    <input
+                        type="text"
+                        id="new-char-name"
+                        required
+                        placeholder="Nome do Novo Personagem..."
+                        class="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                    />
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl font-bold flex items-center gap-2 transition-colors">
+                        <i class="ph ph-user-plus text-xl"></i>
+                        <span class="hidden sm:inline">Criar</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Lista Simples de Personagens -->
+            <div class="space-y-3">
+                <h2 class="text-slate-400 font-semibold uppercase tracking-wider text-sm ml-2 mb-4" id="char-count-title">
+                    Seus Personagens (0)
+                </h2>
+                <div id="characters-list" class="space-y-4">
+                    <!-- Renderizado via JS -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= VIEW 2: HABILIDADES DO PERSONAGEM ================= -->
+    <div id="view-abilities" class="hidden">
+        <!-- Header fixo do Personagem -->
+        <header class="sticky top-0 z-20 bg-slate-900 shadow-md border-b border-slate-800 p-4 flex flex-col sm:flex-row gap-4 sm:gap-0 items-center justify-between">
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <button onclick="goBackToCharacters()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-full transition-colors group">
+                    <i class="ph ph-arrow-left text-2xl text-indigo-400 group-hover:text-indigo-300"></i>
+                </button>
+                <div class="flex items-center gap-3">
+                    <div id="header-char-initial" class="w-10 h-10 rounded-full bg-indigo-900/50 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/20">
+                        ?
+                    </div>
+                    <h1 id="header-char-name" class="text-xl sm:text-2xl font-bold text-white truncate max-w-[150px] sm:max-w-xs">
+                        Nome
+                    </h1>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button onclick="downloadCurrentCharTxt()" class="flex items-center gap-2 bg-slate-800 hover:bg-emerald-900/40 text-emerald-400 px-4 py-2 rounded-lg font-medium transition-colors border border-slate-700 hover:border-emerald-500/30">
+                    <i class="ph ph-download-simple text-xl"></i>
+                    <span class="hidden sm:inline">Baixar .TXT</span>
+                </button>
+                <button onclick="openAbilityModal()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg">
+                    <i class="ph ph-plus text-xl"></i>
+                    <span>Nova Ação</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Lista de Habilidades (Accordion style) -->
+        <main class="max-w-3xl mx-auto p-4 sm:p-6 mt-4">
+            <div id="abilities-list" class="space-y-3">
+                <!-- Renderizado via JS -->
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= MODAL: NOVA / EDITAR HABILIDADE ================= -->
+    <div id="ability-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-center items-start sm:items-center p-0 sm:p-4 overflow-y-auto">
+        <div class="bg-slate-800 w-full max-w-2xl sm:rounded-2xl shadow-2xl min-h-screen sm:min-h-0 relative flex flex-col">
+            <!-- Header do Modal -->
+            <div class="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center sm:rounded-t-2xl z-10">
+                <h2 id="modal-title" class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="ph ph-magic-wand text-indigo-400 text-2xl"></i>
+                    Nova Habilidade
+                </h2>
+                <button onclick="closeAbilityModal()" class="p-2 text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-full transition-colors">
+                    <i class="ph ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Formulário (Campos em linha única, limpos e isolados) -->
+            <div class="p-4 sm:p-6 overflow-y-auto flex-1">
+                <form id="ability-form" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Tipo</label>
+                        <select id="field-tipo" name="tipo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="ataque">Ataque</option>
+                            <option value="magia">Magia</option>
+                            <option value="habilidade">Habilidade</option>
+                        </select>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Nome *</label>
+                        <input id="field-nome" required type="text" name="nome" placeholder="Ex: Bola de Fogo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Círculo / Nível</label>
+                        <input id="field-circulo" type="text" name="circulo" placeholder="Ex: 1º Círculo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Custo de Mana</label>
+                        <input id="field-custoMana" type="text" name="custoMana" placeholder="Ex: 10 PM" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Execução</label>
+                        <input id="field-execucao" type="text" name="execucao" placeholder="Ex: Ação Padrão" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Alcance</label>
+                        <input id="field-alcance" type="text" name="alcance" placeholder="Ex: Curto (9m)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Alvo</label>
+                        <input id="field-alvo" type="text" name="alvo" placeholder="Ex: 1 Criatura" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Duração</label>
+                        <input id="field-duracao" type="text" name="duracao" placeholder="Ex: Instantânea" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Resistência</label>
+                        <input id="field-resistencia" type="text" name="resistencia" placeholder="Ex: Reflexos reduz à metade" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    </div>
+
+                    <!-- Divisores CSS no formulário -->
+                    <div class="mt-6 mb-2 border-b-2 border-red-900/50 pb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-red-400 select-none">Combate</span>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-red-300 uppercase">Acerto</label>
+                        <input id="field-acerto" type="text" name="acerto" placeholder="Ex: +5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-red-300 uppercase">Crítico</label>
+                        <input id="field-critico" type="text" name="critico" placeholder="Ex: 19x2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-red-300 uppercase">Dano</label>
+                        <input id="field-dano" type="text" name="dano" placeholder="Ex: 6d6 Fogo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-red-300 uppercase">Dano Sem Mana</label>
+                        <input id="field-danoSemMana" type="text" name="danoSemMana" placeholder="Ex: 1d6 Fogo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
+                    </div>
+
+                    <!-- Divisor Medicina -->
+                    <div class="mt-6 mb-2 border-b-2 border-emerald-900/50 pb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 select-none">Medicinas</span>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-emerald-300 uppercase">Dado Vida</label>
+                        <input id="field-dadoVida" type="text" name="dadoVida" placeholder="Ex: 2d8+4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" />
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-emerald-300 uppercase">Dado Mana</label>
+                        <input id="field-dadoMana" type="text" name="dadoMana" placeholder="Ex: 1d4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" />
+                    </div>
+
+                    <!-- Divisor Textos -->
+                    <div class="mt-6 mb-2 border-b-2 border-indigo-900/50 pb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 select-none">Textos Extras</span>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-slate-400 uppercase">Descrição</label>
+                        <textarea id="field-descricao" name="descricao" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none resize-y"></textarea>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-indigo-300 uppercase">Aprimorar</label>
+                        <textarea id="field-aprimorar" name="aprimorar" rows="2" placeholder="Ex: +2 PM: Aumenta o dano..." class="w-full bg-indigo-950/30 border border-indigo-500/30 rounded-lg p-3 text-indigo-100 focus:ring-2 focus:ring-indigo-500 outline-none resize-y"></textarea>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-xs font-semibold text-amber-300 uppercase">Verdadeiro</label>
+                        <textarea id="field-verdadeiro" name="verdadeiro" rows="2" placeholder="Efeitos de forma verdadeira..." class="w-full bg-amber-950/30 border border-amber-500/30 rounded-lg p-3 text-amber-100 focus:ring-2 focus:ring-amber-500 outline-none resize-y"></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="sticky bottom-0 bg-slate-800 border-t border-slate-700 p-4 sm:rounded-b-2xl flex justify-end gap-3 z-10">
+                <button onclick="closeAbilityModal()" type="button" class="px-5 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700 font-medium transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" form="ability-form" class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2 transition-colors shadow-lg">
+                    <i class="ph-bold ph-floppy-disk"></i>
+                    Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL DE CONFIRMAÇÃO ================= -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div class="bg-slate-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-slate-700 text-center">
+            <div class="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+                <i class="ph ph-warning text-3xl text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Atenção</h3>
+            <p id="confirm-message" class="text-slate-400 mb-6 text-sm leading-relaxed"></p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeConfirm()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors flex-1">
+                    Cancelar
+                </button>
+                <button id="confirm-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors flex-1 shadow-lg shadow-red-900/20">
+                    Deletar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT ================= -->
+    <script>
+        // --- ESTADO DA APLICAÇÃO ---
+        let characters = JSON.parse(localStorage.getItem('rpg_characters_vanilla')) || [];
+        let abilities = JSON.parse(localStorage.getItem('rpg_abilities_vanilla')) || [];
+        
+        let selectedCharId = null; // null = View Home; string = View Personagem
+        let expandedAbilityId = null; // ID da habilidade aberta no accordion (dentro da view Personagem)
+        let editingAbilityId = null; 
+
+        // --- REFERÊNCIAS DOM ---
+        const viewCharacters = document.getElementById('view-characters');
+        const viewAbilities = document.getElementById('view-abilities');
+        
+        const charactersListElement = document.getElementById('characters-list');
+        const abilitiesListElement = document.getElementById('abilities-list');
+        
+        const addCharForm = document.getElementById('add-char-form');
+        const newCharInput = document.getElementById('new-char-name');
+        
+        const abilityModal = document.getElementById('ability-modal');
+        const abilityForm = document.getElementById('ability-form');
+        const modalTitle = document.getElementById('modal-title');
+        
+        const confirmModal = document.getElementById('confirm-modal');
+        let onConfirmAction = null;
+
+        // --- SISTEMA DE SALVAMENTO ---
+        function saveData() {
+            localStorage.setItem('rpg_characters_vanilla', JSON.stringify(characters));
+            localStorage.setItem('rpg_abilities_vanilla', JSON.stringify(abilities));
+        }
+
+        // --- CONTROLADOR DE TELAS (VIEWS) ---
+        function updateUI() {
+            if (selectedCharId) {
+                // Modo Personagem
+                viewCharacters.classList.add('hidden');
+                viewAbilities.classList.remove('hidden');
+                renderAbilityView();
+            } else {
+                // Modo Home (Lista)
+                viewCharacters.classList.remove('hidden');
+                viewAbilities.classList.add('hidden');
+                renderCharactersList();
+            }
+        }
+
+        // --- RENDER: LISTA DE PERSONAGENS (VIEW 1) ---
+        function renderCharactersList() {
+            document.getElementById('char-count-title').textContent = `Seus Personagens (${characters.length})`;
+            
+            if (characters.length === 0) {
+                charactersListElement.innerHTML = `
+                    <div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-dashed border-slate-700">
+                        <i class="ph ph-shield text-5xl text-slate-600 mb-3 block"></i>
+                        <p class="text-slate-400">Nenhum personagem criado ainda.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            charactersListElement.innerHTML = characters.map(char => {
+                const count = abilities.filter(a => a.characterId === char.id).length;
+                const letter = char.name.charAt(0).toUpperCase();
+
+                // Personagem "Normal", ao clicar vai para a tela dele
+                return `
+                    <div onclick="selectCharacter('${char.id}')" class="group bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 cursor-pointer transition-all flex items-center justify-between shadow-lg">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-indigo-900/50 text-indigo-400 flex items-center justify-center font-bold text-xl border border-indigo-500/20 shadow-inner">
+                                ${letter}
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
+                                    ${char.name}
+                                </h3>
+                                <p class="text-sm text-slate-500">
+                                    ${count} ${count === 1 ? 'habilidade' : 'habilidades'}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 sm:gap-2">
+                            <button onclick="requestDeleteChar(event, '${char.id}')" class="p-2 text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all" title="Deletar">
+                                <i class="ph ph-trash text-xl"></i>
+                            </button>
+                            <i class="ph ph-caret-right text-slate-600 group-hover:text-indigo-400 transition-colors text-xl ml-2"></i>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- RENDER: TELA DO PERSONAGEM (VIEW 2) ---
+        function renderAbilityView() {
+            const char = characters.find(c => c.id === selectedCharId);
+            if (!char) {
+                goBackToCharacters();
+                return;
+            }
+
+            // Atualiza Header
+            document.getElementById('header-char-initial').textContent = char.name.charAt(0).toUpperCase();
+            document.getElementById('header-char-name').textContent = char.name;
+
+            const charAbilities = abilities.filter(a => a.characterId === char.id);
+
+            if (charAbilities.length === 0) {
+                abilitiesListElement.innerHTML = `
+                    <div class="text-center py-16 text-slate-500 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800 mt-8">
+                        <i class="ph ph-book-open text-4xl mx-auto mb-3 opacity-50 block"></i>
+                        <p class="text-base text-slate-400">Nenhuma habilidade cadastrada.</p>
+                        <p class="text-sm mt-1">Clique em "Nova Ação" acima para adicionar.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // RENDERIZAÇÃO DA LISTA COMO ACCORDION (Colapsável)
+            abilitiesListElement.innerHTML = charAbilities.map(ability => {
+                const isExpanded = expandedAbilityId === ability.id;
+                
+                let iconHtml = '';
+                if(ability.tipo === 'ataque') iconHtml = '<i class="ph-fill ph-sword text-red-400 text-2xl"></i>';
+                else if(ability.tipo === 'magia') iconHtml = '<i class="ph-fill ph-magic-wand text-blue-400 text-2xl"></i>';
+                else iconHtml = '<i class="ph-fill ph-shield text-green-400 text-2xl"></i>';
+
+                const val = (field) => (ability[field] && ability[field].trim() !== '') ? ability[field] : '-';
+
+                return `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg transition-colors ${isExpanded ? 'ring-1 ring-indigo-500/50' : 'hover:border-slate-600'}">
+                        
+                        <!-- Header Colapsável -->
+                        <div onclick="toggleAbility('${ability.id}')" class="p-3 sm:p-4 bg-slate-950/50 flex justify-between items-center cursor-pointer hover:bg-slate-800/80 transition-colors">
+                            <div class="flex items-center gap-3">
+                                ${iconHtml}
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-200">${val('nome')}</h3>
+                                    <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                                        ${val('tipo')}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-1">
+                                <button onclick="editAbility(event, '${ability.id}')" class="p-2 text-slate-500 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-colors" title="Editar">
+                                    <i class="ph ph-pencil-simple text-lg"></i>
+                                </button>
+                                <button onclick="requestDeleteAbility(event, '${ability.id}')" class="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title="Deletar">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </button>
+                                <i class="ph ${isExpanded ? 'ph-caret-up text-indigo-400' : 'ph-caret-down text-slate-500'} text-xl ml-2 transition-colors"></i>
+                            </div>
+                        </div>
+                        
+                        <!-- Corpo dos Detalhes da Habilidade (Escondido ou Mostrado) -->
+                        <div class="${isExpanded ? 'block' : 'hidden'} border-t border-slate-800 bg-slate-900 p-4">
+                            <!-- Utilizamos Grid e Divs limpas no lugar do texto pré-formatado que quebrava -->
+                            <div class="space-y-2 text-sm text-slate-300">
+                                <div class="text-xs text-slate-500 italic mb-2 flex items-center gap-1 border-b border-slate-800/50 pb-2">
+                                    <i class="ph ph-clock"></i> Atualizado em: ${ability.updatedAt || 'Data não registrada'}
+                                </div>
+                                <div><strong class="text-white">Nome:</strong> ${val('nome')}</div>
+                                <div><strong class="text-white">Círculo / Nível:</strong> ${val('circulo')}</div>
+                                <div><strong class="text-white">Custo de Mana:</strong> ${val('custoMana')}</div>
+                                <div><strong class="text-white">Execução:</strong> ${val('execucao')}</div>
+                                <div><strong class="text-white">Alcance:</strong> ${val('alcance')}</div>
+                                <div><strong class="text-white">Alvo:</strong> ${val('alvo')}</div>
+                                <div><strong class="text-white">Duração:</strong> ${val('duracao')}</div>
+                                <div><strong class="text-white">Resistência:</strong> ${val('resistencia')}</div>
+
+                                <!-- Divisores Visuais (CSS) sem "--------" -->
+                                <div class="pt-3 mt-3 border-t border-slate-800">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-red-400 mb-2 select-none">Combate</h4>
+                                    <div class="space-y-1">
+                                        <div><strong class="text-white">Acerto:</strong> ${val('acerto')}</div>
+                                        <div><strong class="text-white">Crítico:</strong> ${val('critico')}</div>
+                                        <div><strong class="text-white">Dano:</strong> ${val('dano')}</div>
+                                        <div><strong class="text-white">Dano Sem Mana:</strong> ${val('danoSemMana')}</div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 mt-3 border-t border-slate-800">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2 select-none">Medicinas</h4>
+                                    <div class="space-y-1">
+                                        <div><strong class="text-white">Dado Vida:</strong> ${val('dadoVida')}</div>
+                                        <div><strong class="text-white">Dado Mana:</strong> ${val('dadoMana')}</div>
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 mt-3 border-t border-slate-800">
+                                    <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 select-none">Textos e Notas</h4>
+                                    <div class="space-y-1">
+                                        <div><strong class="text-white block mb-1">Descrição:</strong> <span class="block bg-slate-950/50 p-2 rounded border border-slate-800 leading-relaxed">${val('descricao')}</span></div>
+                                        <div class="pt-2"><strong class="text-white block mb-1">Aprimorar:</strong> <span class="block bg-slate-950/50 p-2 rounded border border-slate-800 leading-relaxed">${val('aprimorar')}</span></div>
+                                        <div class="pt-2"><strong class="text-white block mb-1">Verdadeiro:</strong> <span class="block bg-slate-950/50 p-2 rounded border border-slate-800 leading-relaxed">${val('verdadeiro')}</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- FUNÇÕES DE NAVEGAÇÃO E ACORDEÃO ---
+        function selectCharacter(id) {
+            selectedCharId = id;
+            expandedAbilityId = null; // reseta acordeão ao abrir personagem
+            updateUI();
+        }
+
+        function goBackToCharacters() {
+            selectedCharId = null;
+            updateUI();
+        }
+
+        function toggleAbility(id) {
+            expandedAbilityId = expandedAbilityId === id ? null : id;
+            updateUI(); // Re-renderiza a view 2 para abrir/fechar
+        }
+
+        // --- SISTEMA CUSTOMIZADO DE CONFIRMAÇÃO (Substitui Confirm Nativo) ---
+        function openConfirm(message, action) {
+            document.getElementById('confirm-message').textContent = message;
+            onConfirmAction = action;
+            confirmModal.classList.remove('hidden');
+        }
+
+        function closeConfirm() {
+            confirmModal.classList.add('hidden');
+            onConfirmAction = null;
+        }
+
+        document.getElementById('confirm-btn').addEventListener('click', () => {
+            if (onConfirmAction) onConfirmAction();
+            closeConfirm();
+        });
+
+        // --- ACÕES: PERSONAGEM ---
+        addCharForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = newCharInput.value.trim();
+            if (!name) return;
+
+            const newChar = { id: Date.now().toString(), name: name };
+            characters.push(newChar);
+            saveData();
+            newCharInput.value = '';
+            
+            // Vai direto para o personagem recém criado
+            selectCharacter(newChar.id);
+        });
+
+        function requestDeleteChar(event, id) {
+            event.stopPropagation(); // Evita entrar na página do personagem
+            openConfirm(
+                'Tem a certeza de que deseja deletar este personagem e todas as suas habilidades? Esta ação é irreversível.',
+                () => {
+                    characters = characters.filter(c => c.id !== id);
+                    abilities = abilities.filter(a => a.characterId !== id);
+                    saveData();
+                    updateUI();
+                }
+            );
+        }
+
+        // --- ACÕES: HABILIDADES ---
+        function openAbilityModal() {
+            editingAbilityId = null;
+            abilityForm.reset();
+            modalTitle.innerHTML = '<i class="ph ph-magic-wand text-indigo-400 text-2xl"></i> Nova Ação';
+            abilityModal.classList.remove('hidden');
+        }
+
+        function editAbility(event, id) {
+            event.stopPropagation(); // Impede o clique de abrir o accordion
+            const ability = abilities.find(a => a.id === id);
+            if(!ability) return;
+
+            editingAbilityId = id;
+            modalTitle.innerHTML = '<i class="ph ph-pencil-simple text-indigo-400 text-2xl"></i> Editar Ação';
+
+            // Preenche o formulário
+            const fields = ['tipo', 'nome', 'circulo', 'custoMana', 'execucao', 'alcance', 'alvo', 'duracao', 'resistencia', 'acerto', 'critico', 'dano', 'danoSemMana', 'dadoVida', 'dadoMana', 'descricao', 'aprimorar', 'verdadeiro'];
+            
+            fields.forEach(f => {
+                const el = document.getElementById(`field-${f}`);
+                if(el) el.value = ability[f] || '';
+            });
+
+            abilityModal.classList.remove('hidden');
+        }
+
+        function closeAbilityModal() {
+            editingAbilityId = null;
+            abilityModal.classList.add('hidden');
+        }
+
+        abilityForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(abilityForm);
+            const inputData = Object.fromEntries(formData.entries());
+            
+            // Adiciona a data e hora atual do salvamento/edição
+            inputData.updatedAt = new Date().toLocaleString('pt-BR');
+            
+            if(editingAbilityId) {
+                abilities = abilities.map(a => a.id === editingAbilityId ? { ...a, ...inputData } : a);
+            } else {
+                inputData.id = Date.now().toString();
+                inputData.characterId = selectedCharId;
+                abilities.push(inputData);
+            }
+
+            saveData();
+            closeAbilityModal();
+            updateUI();
+        });
+
+        function requestDeleteAbility(event, id) {
+            event.stopPropagation(); // Impede accordion de abrir/fechar
+            openConfirm(
+                'Deletar esta ação/habilidade permanentemente do seu grimório?',
+                () => {
+                    abilities = abilities.filter(a => a.id !== id);
+                    saveData();
+                    updateUI();
+                }
+            );
+        }
+
+        // --- DOWNLOAD TXT (GERAÇÃO) ---
+        function downloadCurrentCharTxt() {
+            const char = characters.find(c => c.id === selectedCharId);
+            if (!char) return;
+
+            const charAbilities = abilities.filter(a => a.characterId === selectedCharId);
+            
+            let txt = `=========================================\n`;
+            txt += `PERSONAGEM: ${char.name.toUpperCase()}\n`;
+            txt += `TOTAL DE HABILIDADES: ${charAbilities.length}\n`;
+            txt += `=========================================\n\n`;
+
+            if (charAbilities.length === 0) {
+                txt += `Nenhuma habilidade cadastrada.\n`;
+            } else {
+                charAbilities.forEach((ab, index) => {
+                    const val = (field) => (ab[field] && ab[field].trim() !== '') ? ab[field] : '-';
+                    
+                    // Nota: No arquivo .txt é seguro usar "---" pois blocos de notas não quebram layout
+                    txt += `[ AÇÃO ${index + 1} - ${val('tipo').toUpperCase()} ]\n`;
+                    txt += `Atualizado em: ${ab.updatedAt || 'Data não registrada'}\n`;
+                    txt += `Nome: ${val('nome')}\n`;
+                    txt += `Círculo/Nível: ${val('circulo')}\n`;
+                    txt += `Custo de Mana: ${val('custoMana')}\n`;
+                    txt += `Execução: ${val('execucao')}\n`;
+                    txt += `Alcance: ${val('alcance')}\n`;
+                    txt += `Alvo: ${val('alvo')}\n`;
+                    txt += `Duração: ${val('duracao')}\n`;
+                    txt += `Resistência: ${val('resistencia')}\n\n`;
+                    
+                    txt += `  > Combate\n`;
+                    txt += `  Acerto: ${val('acerto')}\n`;
+                    txt += `  Crítico: ${val('critico')}\n`;
+                    txt += `  Dano: ${val('dano')}\n`;
+                    txt += `  Dano Sem Mana: ${val('danoSemMana')}\n\n`;
+                    
+                    txt += `  > Medicinas\n`;
+                    txt += `  Dado Vida: ${val('dadoVida')}\n`;
+                    txt += `  Dado Mana: ${val('dadoMana')}\n\n`;
+                    
+                    txt += `  > Textos\n`;
+                    txt += `  Descrição: ${val('descricao')}\n`;
+                    txt += `  Aprimorar: ${val('aprimorar')}\n`;
+                    txt += `  Verdadeiro: ${val('verdadeiro')}\n\n`;
+                    txt += `-----------------------------------------\n\n`;
+                });
+            }
+
+            const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Grimorio_${char.name.replace(/\s+/g, '_')}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- INICIALIZAÇÃO ---
+        updateUI();
+    </script>
+</body>
+</html>
