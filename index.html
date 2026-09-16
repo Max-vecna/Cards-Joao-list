@@ -1,651 +1,720 @@
-<!DOCTYPE html>
-<html lang="pt">
+<!doctype html>
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciador de Habilidades RPG</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <style>
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-        body { font-family: system-ui, -apple-system, sans-serif; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#071018" />
+  <title>WebAR — Criatura no Chão</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #071018;
+      color: #fff;
+    }
+
+    #app, #fallbackVideo, #threeCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #fallbackVideo {
+      display: none;
+      object-fit: cover;
+      background: #000;
+    }
+
+    #threeCanvas {
+      display: block;
+      touch-action: none;
+    }
+
+    .topbar {
+      position: fixed;
+      z-index: 20;
+      top: max(12px, env(safe-area-inset-top));
+      left: 12px;
+      right: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .card {
+      pointer-events: auto;
+      width: min(520px, calc(100vw - 24px));
+      padding: 14px 15px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 18px;
+      background: rgba(6, 14, 22, .76);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.28);
+    }
+
+    .title {
+      margin: 0 0 4px;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+
+    .status {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.4;
+      color: rgba(255,255,255,.82);
+    }
+
+    .dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: #ffb020;
+      box-shadow: 0 0 0 4px rgba(255,176,32,.13);
+      vertical-align: 0;
+    }
+
+    .dot.ok {
+      background: #48d597;
+      box-shadow: 0 0 0 4px rgba(72,213,151,.13);
+    }
+
+    .dot.bad {
+      background: #ff6262;
+      box-shadow: 0 0 0 4px rgba(255,98,98,.13);
+    }
+
+    .controls {
+      position: fixed;
+      z-index: 30;
+      left: 12px;
+      right: 12px;
+      bottom: max(16px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    button {
+      pointer-events: auto;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 18px;
+      min-height: 48px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      color: #061017;
+      background: #f5f7fb;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+
+    button.primary { background: #79f2c0; }
+    button.secondary { background: rgba(255,255,255,.9); }
+    button.danger { background: #ff7373; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .badge {
+      display: inline-flex;
+      margin-top: 8px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      font-size: 11px;
+      color: rgba(255,255,255,.72);
+    }
+
+    #reticleHint {
+      position: fixed;
+      z-index: 15;
+      left: 50%;
+      top: 58%;
+      transform: translate(-50%, -50%);
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.5);
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity .25s ease;
+      pointer-events: none;
+    }
+
+    #reticleHint.show { opacity: 1; }
+
+    #unsupported {
+      display: none;
+      position: fixed;
+      z-index: 40;
+      inset: 0;
+      padding: 24px;
+      place-items: center;
+      background:
+        radial-gradient(circle at 50% 15%, rgba(77,156,255,.18), transparent 34%),
+        #071018;
+    }
+
+    #unsupported .panel {
+      width: min(560px, 100%);
+      padding: 22px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      background: rgba(255,255,255,.06);
+    }
+
+    #unsupported h2 { margin-top: 0; }
+    #unsupported p, #unsupported li {
+      color: rgba(255,255,255,.78);
+      line-height: 1.5;
+    }
+
+    #unsupported ul { padding-left: 20px; }
+
+    .tiny {
+      font-size: 11px;
+      color: rgba(255,255,255,.55);
+      margin-top: 8px;
+    }
+
+    @media (max-width: 540px) {
+      .card { padding: 12px 13px; }
+      .title { font-size: 15px; }
+      .status { font-size: 12px; }
+      button { padding: 12px 15px; font-size: 14px; }
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.180.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
-<body class="bg-slate-950 text-slate-200 min-h-screen pb-20">
 
-    <!-- ================= VIEW 1: LISTA DE PERSONAGENS ================= -->
-    <div id="view-characters" class="block">
-        <header class="bg-slate-900 border-b border-slate-800 p-6 sm:p-10 text-center">
-            <h1 class="text-3xl sm:text-4xl font-extrabold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-2">
-                Grimório RPG
-            </h1>
-            <p class="text-slate-400 text-sm sm:text-base">Gerencie seus personagens e grimórios</p>
-        </header>
+<body>
+  <div id="app"></div>
+  <video id="fallbackVideo" autoplay muted playsinline></video>
 
-        <main class="max-w-3xl mx-auto p-4 sm:p-6 mt-6">
-            <!-- Add Character Form -->
-            <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xl mb-8">
-                <form id="add-char-form" class="flex gap-2">
-                    <input
-                        type="text"
-                        id="new-char-name"
-                        required
-                        placeholder="Nome do Novo Personagem..."
-                        class="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-3 text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                    />
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 rounded-xl font-bold flex items-center gap-2 transition-colors">
-                        <i class="ph ph-user-plus text-xl"></i>
-                        <span class="hidden sm:inline">Criar</span>
-                    </button>
-                </form>
-            </div>
-
-            <!-- Lista Simples de Personagens -->
-            <div class="space-y-3">
-                <h2 class="text-slate-400 font-semibold uppercase tracking-wider text-sm ml-2 mb-4" id="char-count-title">
-                    Seus Personagens (0)
-                </h2>
-                <div id="characters-list" class="space-y-4">
-                    <!-- Renderizado via JS -->
-                </div>
-            </div>
-        </main>
+  <div class="topbar">
+    <div class="card">
+      <p class="title">Criatura no chão — WebAR</p>
+      <p class="status"><span id="statusDot" class="dot"></span><span id="statusText">Verificando suporte a realidade aumentada…</span></p>
+      <span id="modeBadge" class="badge">Modo: verificando</span>
+      <div class="tiny">Dica: mova o celular lentamente apontando para uma área bem iluminada do chão.</div>
     </div>
+  </div>
 
-    <!-- ================= VIEW 2: HABILIDADES DO PERSONAGEM ================= -->
-    <div id="view-abilities" class="hidden">
-        <!-- Header fixo do Personagem -->
-        <header class="sticky top-0 z-20 bg-slate-900 shadow-md border-b border-slate-800 p-4 flex flex-col sm:flex-row gap-4 sm:gap-0 items-center justify-between">
-            <div class="flex items-center gap-3 w-full sm:w-auto">
-                <button onclick="goBackToCharacters()" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-full transition-colors group">
-                    <i class="ph ph-arrow-left text-2xl text-indigo-400 group-hover:text-indigo-300"></i>
-                </button>
-                <div class="flex items-center gap-3">
-                    <div id="header-char-initial" class="w-10 h-10 rounded-full bg-indigo-900/50 text-indigo-400 flex items-center justify-center font-bold text-lg border border-indigo-500/20">
-                        ?
-                    </div>
-                    <h1 id="header-char-name" class="text-xl sm:text-2xl font-bold text-white truncate max-w-[150px] sm:max-w-xs">
-                        Nome
-                    </h1>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <button onclick="downloadCurrentCharTxt()" class="flex items-center gap-2 bg-slate-800 hover:bg-emerald-900/40 text-emerald-400 px-4 py-2 rounded-lg font-medium transition-colors border border-slate-700 hover:border-emerald-500/30">
-                    <i class="ph ph-download-simple text-xl"></i>
-                    <span class="hidden sm:inline">Baixar .TXT</span>
-                </button>
-                <button onclick="openAbilityModal()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-lg">
-                    <i class="ph ph-plus text-xl"></i>
-                    <span>Nova Ação</span>
-                </button>
-            </div>
-        </header>
+  <div id="reticleHint">Superfície encontrada — toque para posicionar</div>
 
-        <!-- Lista de Habilidades (Accordion style) -->
-        <main class="max-w-3xl mx-auto p-4 sm:p-6 mt-4">
-            <div id="abilities-list" class="space-y-3">
-                <!-- Renderizado via JS -->
-            </div>
-        </main>
+  <div class="controls">
+    <button id="startAR" class="primary" disabled>INICIAR AR</button>
+    <button id="resetObject" class="secondary" style="display:none">REPOSICIONAR</button>
+    <button id="fallbackBtn" class="secondary" style="display:none">TESTAR CÂMERA</button>
+    <button id="exitAR" class="danger" style="display:none">SAIR</button>
+  </div>
+
+  <div id="unsupported">
+    <div class="panel">
+      <h2>AR WebXR não disponível</h2>
+      <p>Este aparelho/navegador não expôs uma sessão <b>immersive-ar</b>. Você ainda pode testar a câmera no modo de demonstração, mas nesse modo o objeto não fica realmente ancorado no chão.</p>
+      <ul>
+        <li>Abra pelo Chrome em um Android compatível com ARCore.</li>
+        <li>Hospede o arquivo em HTTPS ou use localhost.</li>
+        <li>Permita câmera e os recursos de realidade aumentada quando solicitado.</li>
+      </ul>
+      <button id="closeUnsupported" class="secondary">VOLTAR</button>
     </div>
+  </div>
 
-    <!-- ================= MODAL: NOVA / EDITAR HABILIDADE ================= -->
-    <div id="ability-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex justify-center items-start sm:items-center p-0 sm:p-4 overflow-y-auto">
-        <div class="bg-slate-800 w-full max-w-2xl sm:rounded-2xl shadow-2xl min-h-screen sm:min-h-0 relative flex flex-col">
-            <!-- Header do Modal -->
-            <div class="sticky top-0 bg-slate-800 border-b border-slate-700 p-4 flex justify-between items-center sm:rounded-t-2xl z-10">
-                <h2 id="modal-title" class="text-xl font-bold text-white flex items-center gap-2">
-                    <i class="ph ph-magic-wand text-indigo-400 text-2xl"></i>
-                    Nova Habilidade
-                </h2>
-                <button onclick="closeAbilityModal()" class="p-2 text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 rounded-full transition-colors">
-                    <i class="ph ph-x text-xl"></i>
-                </button>
-            </div>
+  <script type="module">
+    import * as THREE from "three";
 
-            <!-- Formulário (Campos em linha única, limpos e isolados) -->
-            <div class="p-4 sm:p-6 overflow-y-auto flex-1">
-                <form id="ability-form" class="space-y-4">
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Tipo</label>
-                        <select id="field-tipo" name="tipo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="ataque">Ataque</option>
-                            <option value="magia">Magia</option>
-                            <option value="habilidade">Habilidade</option>
-                        </select>
-                    </div>
+    const app = document.getElementById("app");
+    const video = document.getElementById("fallbackVideo");
+    const startAR = document.getElementById("startAR");
+    const exitAR = document.getElementById("exitAR");
+    const resetObject = document.getElementById("resetObject");
+    const fallbackBtn = document.getElementById("fallbackBtn");
+    const statusText = document.getElementById("statusText");
+    const statusDot = document.getElementById("statusDot");
+    const modeBadge = document.getElementById("modeBadge");
+    const reticleHint = document.getElementById("reticleHint");
+    const unsupported = document.getElementById("unsupported");
+    const closeUnsupported = document.getElementById("closeUnsupported");
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Nome *</label>
-                        <input id="field-nome" required type="text" name="nome" placeholder="Ex: Bola de Fogo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+    let renderer, scene, camera, reticle, creatureRoot, creatureModel;
+    let xrSession = null;
+    let hitTestSource = null;
+    let hitTestSourceRequested = false;
+    let creaturePlaced = false;
+    let fallbackMode = false;
+    let fallbackStream = null;
+    let clock = new THREE.Clock();
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Círculo / Nível</label>
-                        <input id="field-circulo" type="text" name="circulo" placeholder="Ex: 1º Círculo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+    function setStatus(text, type = "warn") {
+      statusText.textContent = text;
+      statusDot.className = "dot" + (type === "ok" ? " ok" : type === "bad" ? " bad" : "");
+    }
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Custo de Mana</label>
-                        <input id="field-custoMana" type="text" name="custoMana" placeholder="Ex: 10 PM" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+    function initThree() {
+      scene = new THREE.Scene();
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Execução</label>
-                        <input id="field-execucao" type="text" name="execucao" placeholder="Ex: Ação Padrão" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+      camera = new THREE.PerspectiveCamera(
+        65,
+        innerWidth / innerHeight,
+        0.01,
+        30
+      );
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Alcance</label>
-                        <input id="field-alcance" type="text" name="alcance" placeholder="Ex: Curto (9m)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance"
+      });
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Alvo</label>
-                        <input id="field-alvo" type="text" name="alvo" placeholder="Ex: 1 Criatura" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.xr.enabled = true;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.domElement.id = "threeCanvas";
+      app.appendChild(renderer.domElement);
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Duração</label>
-                        <input id="field-duracao" type="text" name="duracao" placeholder="Ex: Instantânea" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 2.2);
+      scene.add(hemi);
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Resistência</label>
-                        <input id="field-resistencia" type="text" name="resistencia" placeholder="Ex: Reflexos reduz à metade" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none" />
-                    </div>
+      const key = new THREE.DirectionalLight(0xffffff, 2.6);
+      key.position.set(1.5, 3.2, 2.2);
+      scene.add(key);
 
-                    <!-- Divisores CSS no formulário -->
-                    <div class="mt-6 mb-2 border-b-2 border-red-900/50 pb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider text-red-400 select-none">Combate</span>
-                    </div>
+      // Retículo que acompanha a superfície detectada pelo hit-test.
+      const ringGeometry = new THREE.RingGeometry(0.085, 0.115, 48);
+      ringGeometry.rotateX(-Math.PI / 2);
+      const ringMaterial = new THREE.MeshBasicMaterial({
+        color: 0x79f2c0,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+      reticle = new THREE.Mesh(ringGeometry, ringMaterial);
+      reticle.matrixAutoUpdate = false;
+      reticle.visible = false;
+      scene.add(reticle);
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-red-300 uppercase">Acerto</label>
-                        <input id="field-acerto" type="text" name="acerto" placeholder="Ex: +5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
-                    </div>
+      creatureRoot = new THREE.Group();
+      creatureRoot.visible = false;
+      scene.add(creatureRoot);
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-red-300 uppercase">Crítico</label>
-                        <input id="field-critico" type="text" name="critico" placeholder="Ex: 19x2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
-                    </div>
+      creatureModel = makeCreature();
+      creatureRoot.add(creatureModel);
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-red-300 uppercase">Dano</label>
-                        <input id="field-dano" type="text" name="dano" placeholder="Ex: 6d6 Fogo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
-                    </div>
+      renderer.setAnimationLoop(render);
+    }
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-red-300 uppercase">Dano Sem Mana</label>
-                        <input id="field-danoSemMana" type="text" name="danoSemMana" placeholder="Ex: 1d6 Fogo" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-red-500 outline-none" />
-                    </div>
+    function makeCreature() {
+      const g = new THREE.Group();
 
-                    <!-- Divisor Medicina -->
-                    <div class="mt-6 mb-2 border-b-2 border-emerald-900/50 pb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 select-none">Medicinas</span>
-                    </div>
+      const purple = new THREE.MeshStandardMaterial({
+        color: 0x8b6cff,
+        roughness: 0.55,
+        metalness: 0.0
+      });
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-emerald-300 uppercase">Dado Vida</label>
-                        <input id="field-dadoVida" type="text" name="dadoVida" placeholder="Ex: 2d8+4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" />
-                    </div>
+      const bellyMat = new THREE.MeshStandardMaterial({
+        color: 0xc9bfff,
+        roughness: 0.65
+      });
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-emerald-300 uppercase">Dado Mana</label>
-                        <input id="field-dadoMana" type="text" name="dadoMana" placeholder="Ex: 1d4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none" />
-                    </div>
+      const dark = new THREE.MeshStandardMaterial({
+        color: 0x151829,
+        roughness: 0.7
+      });
 
-                    <!-- Divisor Textos -->
-                    <div class="mt-6 mb-2 border-b-2 border-indigo-900/50 pb-2">
-                        <span class="text-xs font-bold uppercase tracking-wider text-indigo-400 select-none">Textos Extras</span>
-                    </div>
+      const white = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.55
+      });
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-slate-400 uppercase">Descrição</label>
-                        <textarea id="field-descricao" name="descricao" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none resize-y"></textarea>
-                    </div>
+      const pink = new THREE.MeshStandardMaterial({
+        color: 0xff6fae,
+        roughness: 0.55
+      });
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-indigo-300 uppercase">Aprimorar</label>
-                        <textarea id="field-aprimorar" name="aprimorar" rows="2" placeholder="Ex: +2 PM: Aumenta o dano..." class="w-full bg-indigo-950/30 border border-indigo-500/30 rounded-lg p-3 text-indigo-100 focus:ring-2 focus:ring-indigo-500 outline-none resize-y"></textarea>
-                    </div>
+      // Corpo
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(0.34, 32, 24),
+        purple
+      );
+      body.scale.set(1.02, 1.12, 0.95);
+      body.position.y = 0.46;
+      g.add(body);
 
-                    <div class="space-y-1">
-                        <label class="text-xs font-semibold text-amber-300 uppercase">Verdadeiro</label>
-                        <textarea id="field-verdadeiro" name="verdadeiro" rows="2" placeholder="Efeitos de forma verdadeira..." class="w-full bg-amber-950/30 border border-amber-500/30 rounded-lg p-3 text-amber-100 focus:ring-2 focus:ring-amber-500 outline-none resize-y"></textarea>
-                    </div>
-                </form>
-            </div>
+      // Barriga
+      const belly = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22, 28, 18),
+        bellyMat
+      );
+      belly.scale.set(1, 1.08, 0.42);
+      belly.position.set(0, 0.42, 0.285);
+      g.add(belly);
 
-            <!-- Modal Footer -->
-            <div class="sticky bottom-0 bg-slate-800 border-t border-slate-700 p-4 sm:rounded-b-2xl flex justify-end gap-3 z-10">
-                <button onclick="closeAbilityModal()" type="button" class="px-5 py-2.5 rounded-lg text-slate-300 hover:bg-slate-700 font-medium transition-colors">
-                    Cancelar
-                </button>
-                <button type="submit" form="ability-form" class="px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2 transition-colors shadow-lg">
-                    <i class="ph-bold ph-floppy-disk"></i>
-                    Salvar
-                </button>
-            </div>
-        </div>
-    </div>
+      // Olhos
+      for (const x of [-0.115, 0.115]) {
+        const eye = new THREE.Mesh(
+          new THREE.SphereGeometry(0.065, 24, 16),
+          white
+        );
+        eye.position.set(x, 0.59, 0.285);
+        g.add(eye);
 
-    <!-- ================= MODAL DE CONFIRMAÇÃO ================= -->
-    <div id="confirm-modal" class="hidden fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm flex justify-center items-center p-4">
-        <div class="bg-slate-800 w-full max-w-sm rounded-2xl shadow-2xl p-6 border border-slate-700 text-center">
-            <div class="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
-                <i class="ph ph-warning text-3xl text-red-500"></i>
-            </div>
-            <h3 class="text-xl font-bold text-white mb-2">Atenção</h3>
-            <p id="confirm-message" class="text-slate-400 mb-6 text-sm leading-relaxed"></p>
-            <div class="flex gap-3 justify-center">
-                <button onclick="closeConfirm()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors flex-1">
-                    Cancelar
-                </button>
-                <button id="confirm-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-colors flex-1 shadow-lg shadow-red-900/20">
-                    Deletar
-                </button>
-            </div>
-        </div>
-    </div>
+        const pupil = new THREE.Mesh(
+          new THREE.SphereGeometry(0.028, 20, 14),
+          dark
+        );
+        pupil.position.set(x, 0.59, 0.34);
+        g.add(pupil);
+      }
 
-    <!-- ================= JAVASCRIPT ================= -->
-    <script>
-        // --- ESTADO DA APLICAÇÃO ---
-        let characters = JSON.parse(localStorage.getItem('rpg_characters_vanilla')) || [];
-        let abilities = JSON.parse(localStorage.getItem('rpg_abilities_vanilla')) || [];
-        
-        let selectedCharId = null; // null = View Home; string = View Personagem
-        let expandedAbilityId = null; // ID da habilidade aberta no accordion (dentro da view Personagem)
-        let editingAbilityId = null; 
+      // Boca
+      const mouth = new THREE.Mesh(
+        new THREE.TorusGeometry(0.07, 0.016, 10, 28, Math.PI),
+        dark
+      );
+      mouth.rotation.z = Math.PI;
+      mouth.position.set(0, 0.47, 0.345);
+      g.add(mouth);
 
-        // --- REFERÊNCIAS DOM ---
-        const viewCharacters = document.getElementById('view-characters');
-        const viewAbilities = document.getElementById('view-abilities');
-        
-        const charactersListElement = document.getElementById('characters-list');
-        const abilitiesListElement = document.getElementById('abilities-list');
-        
-        const addCharForm = document.getElementById('add-char-form');
-        const newCharInput = document.getElementById('new-char-name');
-        
-        const abilityModal = document.getElementById('ability-modal');
-        const abilityForm = document.getElementById('ability-form');
-        const modalTitle = document.getElementById('modal-title');
-        
-        const confirmModal = document.getElementById('confirm-modal');
-        let onConfirmAction = null;
+      // Bochechas
+      for (const x of [-0.19, 0.19]) {
+        const cheek = new THREE.Mesh(
+          new THREE.SphereGeometry(0.038, 20, 14),
+          pink
+        );
+        cheek.scale.z = 0.45;
+        cheek.position.set(x, 0.49, 0.325);
+        g.add(cheek);
+      }
 
-        // --- SISTEMA DE SALVAMENTO ---
-        function saveData() {
-            localStorage.setItem('rpg_characters_vanilla', JSON.stringify(characters));
-            localStorage.setItem('rpg_abilities_vanilla', JSON.stringify(abilities));
+      // Orelhas/chifres
+      for (const x of [-0.19, 0.19]) {
+        const horn = new THREE.Mesh(
+          new THREE.ConeGeometry(0.085, 0.22, 20),
+          purple
+        );
+        horn.position.set(x, 0.86, 0);
+        horn.rotation.z = x < 0 ? 0.18 : -0.18;
+        g.add(horn);
+      }
+
+      // Pés
+      for (const x of [-0.18, 0.18]) {
+        const foot = new THREE.Mesh(
+          new THREE.SphereGeometry(0.115, 24, 16),
+          dark
+        );
+        foot.scale.set(1.15, 0.52, 1.45);
+        foot.position.set(x, 0.11, 0.06);
+        g.add(foot);
+      }
+
+      // Bracinhos
+      for (const x of [-0.35, 0.35]) {
+        const arm = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.06, 0.16, 6, 14),
+          purple
+        );
+        arm.position.set(x, 0.47, 0);
+        arm.rotation.z = x < 0 ? 0.62 : -0.62;
+        g.add(arm);
+      }
+
+      // Sombra falsa ajuda o objeto a parecer apoiado no chão.
+      const shadow = new THREE.Mesh(
+        new THREE.CircleGeometry(0.32, 40),
+        new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          transparent: true,
+          opacity: 0.24,
+          depthWrite: false
+        })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.y = 0.007;
+      g.add(shadow);
+
+      g.scale.setScalar(0.9);
+      return g;
+    }
+
+    async function checkARSupport() {
+      if (!navigator.xr) {
+        setStatus("Este navegador não possui WebXR.", "bad");
+        modeBadge.textContent = "Modo: sem WebXR";
+        fallbackBtn.style.display = "inline-flex";
+        return;
+      }
+
+      try {
+        const supported = await navigator.xr.isSessionSupported("immersive-ar");
+
+        if (supported) {
+          startAR.disabled = false;
+          setStatus("AR disponível. Toque em INICIAR AR.", "ok");
+          modeBadge.textContent = "Modo: WebXR + detecção de chão";
+        } else {
+          setStatus("WebXR existe, mas AR imersiva não está disponível neste aparelho.", "bad");
+          modeBadge.textContent = "Modo: AR não suportada";
+          fallbackBtn.style.display = "inline-flex";
         }
+      } catch (err) {
+        console.error(err);
+        setStatus("Não foi possível verificar o suporte a AR.", "bad");
+        fallbackBtn.style.display = "inline-flex";
+      }
+    }
 
-        // --- CONTROLADOR DE TELAS (VIEWS) ---
-        function updateUI() {
-            if (selectedCharId) {
-                // Modo Personagem
-                viewCharacters.classList.add('hidden');
-                viewAbilities.classList.remove('hidden');
-                renderAbilityView();
-            } else {
-                // Modo Home (Lista)
-                viewCharacters.classList.remove('hidden');
-                viewAbilities.classList.add('hidden');
-                renderCharactersList();
-            }
-        }
+    async function startXRSession() {
+      try {
+        if (!navigator.xr) throw new Error("WebXR ausente");
 
-        // --- RENDER: LISTA DE PERSONAGENS (VIEW 1) ---
-        function renderCharactersList() {
-            document.getElementById('char-count-title').textContent = `Seus Personagens (${characters.length})`;
-            
-            if (characters.length === 0) {
-                charactersListElement.innerHTML = `
-                    <div class="text-center py-10 bg-slate-900/50 rounded-2xl border border-dashed border-slate-700">
-                        <i class="ph ph-shield text-5xl text-slate-600 mb-3 block"></i>
-                        <p class="text-slate-400">Nenhum personagem criado ainda.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            charactersListElement.innerHTML = characters.map(char => {
-                const count = abilities.filter(a => a.characterId === char.id).length;
-                const letter = char.name.charAt(0).toUpperCase();
-
-                // Personagem "Normal", ao clicar vai para a tela dele
-                return `
-                    <div onclick="selectCharacter('${char.id}')" class="group bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-4 cursor-pointer transition-all flex items-center justify-between shadow-lg">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-full bg-indigo-900/50 text-indigo-400 flex items-center justify-center font-bold text-xl border border-indigo-500/20 shadow-inner">
-                                ${letter}
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors">
-                                    ${char.name}
-                                </h3>
-                                <p class="text-sm text-slate-500">
-                                    ${count} ${count === 1 ? 'habilidade' : 'habilidades'}
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 sm:gap-2">
-                            <button onclick="requestDeleteChar(event, '${char.id}')" class="p-2 text-slate-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all" title="Deletar">
-                                <i class="ph ph-trash text-xl"></i>
-                            </button>
-                            <i class="ph ph-caret-right text-slate-600 group-hover:text-indigo-400 transition-colors text-xl ml-2"></i>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // --- RENDER: TELA DO PERSONAGEM (VIEW 2) ---
-        function renderAbilityView() {
-            const char = characters.find(c => c.id === selectedCharId);
-            if (!char) {
-                goBackToCharacters();
-                return;
-            }
-
-            // Atualiza Header
-            document.getElementById('header-char-initial').textContent = char.name.charAt(0).toUpperCase();
-            document.getElementById('header-char-name').textContent = char.name;
-
-            const charAbilities = abilities.filter(a => a.characterId === char.id);
-
-            if (charAbilities.length === 0) {
-                abilitiesListElement.innerHTML = `
-                    <div class="text-center py-16 text-slate-500 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800 mt-8">
-                        <i class="ph ph-book-open text-4xl mx-auto mb-3 opacity-50 block"></i>
-                        <p class="text-base text-slate-400">Nenhuma habilidade cadastrada.</p>
-                        <p class="text-sm mt-1">Clique em "Nova Ação" acima para adicionar.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // RENDERIZAÇÃO DA LISTA COMO ACCORDION (Colapsável)
-            abilitiesListElement.innerHTML = charAbilities.map(ability => {
-                const isExpanded = expandedAbilityId === ability.id;
-                
-                let iconHtml = '';
-                if(ability.tipo === 'ataque') iconHtml = '<i class="ph-fill ph-sword text-red-400 text-2xl"></i>';
-                else if(ability.tipo === 'magia') iconHtml = '<i class="ph-fill ph-magic-wand text-blue-400 text-2xl"></i>';
-                else iconHtml = '<i class="ph-fill ph-shield text-green-400 text-2xl"></i>';
-
-                const val = (field) => (ability[field] && ability[field].trim() !== '') ? ability[field] : '-';
-
-                return `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg transition-colors ${isExpanded ? 'ring-1 ring-indigo-500/50' : 'hover:border-slate-600'}">
-                        
-                        <!-- Header Colapsável -->
-                        <div onclick="toggleAbility('${ability.id}')" class="p-3 sm:p-4 bg-slate-950/50 flex justify-between items-center cursor-pointer hover:bg-slate-800/80 transition-colors">
-                            <div class="flex items-center gap-3">
-                                ${iconHtml}
-                                <div>
-                                    <h3 class="text-base font-bold text-slate-200">${val('nome')}</h3>
-                                    <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
-                                        ${val('tipo')}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center gap-1">
-                                <button onclick="editAbility(event, '${ability.id}')" class="p-2 text-slate-500 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-colors" title="Editar">
-                                    <i class="ph ph-pencil-simple text-lg"></i>
-                                </button>
-                                <button onclick="requestDeleteAbility(event, '${ability.id}')" class="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title="Deletar">
-                                    <i class="ph ph-trash text-lg"></i>
-                                </button>
-                                <i class="ph ${isExpanded ? 'ph-caret-up text-indigo-400' : 'ph-caret-down text-slate-500'} text-xl ml-2 transition-colors"></i>
-                            </div>
-                        </div>
-                        
-                        <!-- Corpo dos Detalhes da Habilidade (Escondido ou Mostrado) -->
-                        <div class="${isExpanded ? 'block' : 'hidden'} border-t border-slate-800 bg-slate-900 p-4">
-                            <!-- Utilizamos Grid e Divs limpas no lugar do texto pré-formatado que quebrava -->
-                            <div class="space-y-2 text-sm text-slate-300">
-                                <div class="text-xs text-slate-500 italic mb-2 flex items-center gap-1 border-b border-slate-800/50 pb-2">
-                                    <i class="ph ph-clock"></i> Atualizado em: ${ability.updatedAt || 'Data não registrada'}
-                                </div>
-                                <div><strong class="text-white">Nome:</strong> ${val('nome')}</div>
-                                <div><strong class="text-white">Círculo / Nível:</strong> ${val('circulo')}</div>
-                                <div><strong class="text-white">Custo de Mana:</strong> ${val('custoMana')}</div>
-                                <div><strong class="text-white">Execução:</strong> ${val('execucao')}</div>
-                                <div><strong class="text-white">Alcance:</strong> ${val('alcance')}</div>
-                                <div><strong class="text-white">Alvo:</strong> ${val('alvo')}</div>
-                                <div><strong class="text-white">Duração:</strong> ${val('duracao')}</div>
-                                <div><strong class="text-white">Resistência:</strong> ${val('resistencia')}</div>
-
-                                <!-- Divisores Visuais (CSS) sem "--------" -->
-                                <div class="pt-3 mt-3 border-t border-slate-800">
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-red-400 mb-2 select-none">Combate</h4>
-                                    <div class="space-y-1">
-                                        <div><strong class="text-white">Acerto:</strong> ${val('acerto')}</div>
-                                        <div><strong class="text-white">Crítico:</strong> ${val('critico')}</div>
-                                        <div><strong class="text-white">Dano:</strong> ${val('dano')}</div>
-                                        <div><strong class="text-white">Dano Sem Mana:</strong> ${val('danoSemMana')}</div>
-                                    </div>
-                                </div>
-
-                                <div class="pt-3 mt-3 border-t border-slate-800">
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2 select-none">Medicinas</h4>
-                                    <div class="space-y-1">
-                                        <div><strong class="text-white">Dado Vida:</strong> ${val('dadoVida')}</div>
-                                        <div><strong class="text-white">Dado Mana:</strong> ${val('dadoMana')}</div>
-                                    </div>
-                                </div>
-
-                                <div class="pt-3 mt-3 border-t border-slate-800">
-                                    <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 select-none">Textos e Notas</h4>
-                                    <div class="space-y-1">
-                                        <div><strong class="text-white block mb-1">Descrição:</strong> <span class="block bg-slate-950/50 p-2 rounded border border-slate-800 leading-relaxed">${val('descricao')}</span></div>
-                                        <div class="pt-2"><strong class="text-white block mb-1">Aprimorar:</strong> <span class="block bg-slate-950/50 p-2 rounded border border-slate-800 leading-relaxed">${val('aprimorar')}</span></div>
-                                        <div class="pt-2"><strong class="text-white block mb-1">Verdadeiro:</strong> <span class="block bg-slate-950/50 p-2 rounded border border-slate-800 leading-relaxed">${val('verdadeiro')}</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // --- FUNÇÕES DE NAVEGAÇÃO E ACORDEÃO ---
-        function selectCharacter(id) {
-            selectedCharId = id;
-            expandedAbilityId = null; // reseta acordeão ao abrir personagem
-            updateUI();
-        }
-
-        function goBackToCharacters() {
-            selectedCharId = null;
-            updateUI();
-        }
-
-        function toggleAbility(id) {
-            expandedAbilityId = expandedAbilityId === id ? null : id;
-            updateUI(); // Re-renderiza a view 2 para abrir/fechar
-        }
-
-        // --- SISTEMA CUSTOMIZADO DE CONFIRMAÇÃO (Substitui Confirm Nativo) ---
-        function openConfirm(message, action) {
-            document.getElementById('confirm-message').textContent = message;
-            onConfirmAction = action;
-            confirmModal.classList.remove('hidden');
-        }
-
-        function closeConfirm() {
-            confirmModal.classList.add('hidden');
-            onConfirmAction = null;
-        }
-
-        document.getElementById('confirm-btn').addEventListener('click', () => {
-            if (onConfirmAction) onConfirmAction();
-            closeConfirm();
+        xrSession = await navigator.xr.requestSession("immersive-ar", {
+          requiredFeatures: ["hit-test"],
+          optionalFeatures: ["dom-overlay", "local-floor"],
+          domOverlay: { root: document.body }
         });
 
-        // --- ACÕES: PERSONAGEM ---
-        addCharForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = newCharInput.value.trim();
-            if (!name) return;
+        await renderer.xr.setSession(xrSession);
 
-            const newChar = { id: Date.now().toString(), name: name };
-            characters.push(newChar);
-            saveData();
-            newCharInput.value = '';
-            
-            // Vai direto para o personagem recém criado
-            selectCharacter(newChar.id);
-        });
+        fallbackMode = false;
+        creaturePlaced = false;
+        creatureRoot.visible = false;
+        hitTestSource = null;
+        hitTestSourceRequested = false;
 
-        function requestDeleteChar(event, id) {
-            event.stopPropagation(); // Evita entrar na página do personagem
-            openConfirm(
-                'Tem a certeza de que deseja deletar este personagem e todas as suas habilidades? Esta ação é irreversível.',
-                () => {
-                    characters = characters.filter(c => c.id !== id);
-                    abilities = abilities.filter(a => a.characterId !== id);
-                    saveData();
-                    updateUI();
-                }
-            );
-        }
+        startAR.style.display = "none";
+        fallbackBtn.style.display = "none";
+        exitAR.style.display = "inline-flex";
+        resetObject.style.display = "inline-flex";
 
-        // --- ACÕES: HABILIDADES ---
-        function openAbilityModal() {
-            editingAbilityId = null;
-            abilityForm.reset();
-            modalTitle.innerHTML = '<i class="ph ph-magic-wand text-indigo-400 text-2xl"></i> Nova Ação';
-            abilityModal.classList.remove('hidden');
-        }
+        setStatus("Procure o chão movendo o celular lentamente.", "ok");
+        modeBadge.textContent = "Modo: AR real";
 
-        function editAbility(event, id) {
-            event.stopPropagation(); // Impede o clique de abrir o accordion
-            const ability = abilities.find(a => a.id === id);
-            if(!ability) return;
+        xrSession.addEventListener("select", placeCreature);
+        xrSession.addEventListener("end", onSessionEnd);
+      } catch (err) {
+        console.error(err);
+        setStatus("Não foi possível iniciar a sessão AR.", "bad");
+        unsupported.style.display = "grid";
+      }
+    }
 
-            editingAbilityId = id;
-            modalTitle.innerHTML = '<i class="ph ph-pencil-simple text-indigo-400 text-2xl"></i> Editar Ação';
+    function placeCreature() {
+      if (!reticle.visible) return;
 
-            // Preenche o formulário
-            const fields = ['tipo', 'nome', 'circulo', 'custoMana', 'execucao', 'alcance', 'alvo', 'duracao', 'resistencia', 'acerto', 'critico', 'dano', 'danoSemMana', 'dadoVida', 'dadoMana', 'descricao', 'aprimorar', 'verdadeiro'];
-            
-            fields.forEach(f => {
-                const el = document.getElementById(`field-${f}`);
-                if(el) el.value = ability[f] || '';
+      const p = new THREE.Vector3();
+      p.setFromMatrixPosition(reticle.matrix);
+
+      creatureRoot.position.copy(p);
+      creatureRoot.visible = true;
+      creaturePlaced = true;
+
+      // Mantém a criatura "em pé" mesmo se a pose da superfície vier inclinada.
+      creatureRoot.rotation.set(0, camera.rotation.y, 0);
+
+      setStatus("Criatura posicionada. Ande ao redor dela.", "ok");
+      reticleHint.classList.remove("show");
+    }
+
+    function resetPlacement() {
+      creaturePlaced = false;
+      creatureRoot.visible = false;
+      setStatus("Aponte novamente para o chão e toque para posicionar.", "ok");
+    }
+
+    function render(time, frame) {
+      const t = clock.getElapsedTime();
+
+      if (creatureRoot.visible) {
+        // Anima só o modelo interno para preservar o ponto de contato com o chão.
+        creatureModel.position.y = Math.abs(Math.sin(t * 2.5)) * 0.035;
+        creatureModel.rotation.y = Math.sin(t * 0.7) * 0.08;
+      }
+
+      if (frame && xrSession) {
+        const referenceSpace = renderer.xr.getReferenceSpace();
+        const session = renderer.xr.getSession();
+
+        if (!hitTestSourceRequested) {
+          session.requestReferenceSpace("viewer").then((viewerSpace) => {
+            session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+              hitTestSource = source;
             });
+          });
 
-            abilityModal.classList.remove('hidden');
+          session.addEventListener("end", () => {
+            hitTestSourceRequested = false;
+            hitTestSource = null;
+          });
+
+          hitTestSourceRequested = true;
         }
 
-        function closeAbilityModal() {
-            editingAbilityId = null;
-            abilityModal.classList.add('hidden');
-        }
+        if (hitTestSource && referenceSpace) {
+          const results = frame.getHitTestResults(hitTestSource);
 
-        abilityForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(abilityForm);
-            const inputData = Object.fromEntries(formData.entries());
-            
-            // Adiciona a data e hora atual do salvamento/edição
-            inputData.updatedAt = new Date().toLocaleString('pt-BR');
-            
-            if(editingAbilityId) {
-                abilities = abilities.map(a => a.id === editingAbilityId ? { ...a, ...inputData } : a);
-            } else {
-                inputData.id = Date.now().toString();
-                inputData.characterId = selectedCharId;
-                abilities.push(inputData);
+          if (results.length > 0) {
+            const hit = results[0];
+            const pose = hit.getPose(referenceSpace);
+
+            if (pose) {
+              reticle.visible = true;
+              reticle.matrix.fromArray(pose.transform.matrix);
+
+              if (!creaturePlaced) {
+                reticleHint.classList.add("show");
+                setStatus("Superfície detectada. Toque na tela.", "ok");
+              }
             }
+          } else {
+            reticle.visible = false;
+            if (!creaturePlaced) {
+              reticleHint.classList.remove("show");
+            }
+          }
+        }
+      }
 
-            saveData();
-            closeAbilityModal();
-            updateUI();
+      renderer.render(scene, camera);
+    }
+
+    async function onSessionEnd() {
+      xrSession = null;
+      hitTestSource = null;
+      hitTestSourceRequested = false;
+      reticle.visible = false;
+      creatureRoot.visible = false;
+      creaturePlaced = false;
+
+      exitAR.style.display = "none";
+      resetObject.style.display = "none";
+      startAR.style.display = "inline-flex";
+      startAR.disabled = false;
+
+      setStatus("Sessão AR encerrada.", "ok");
+      modeBadge.textContent = "Modo: WebXR pronto";
+    }
+
+    async function stopFallback() {
+      if (fallbackStream) {
+        fallbackStream.getTracks().forEach(t => t.stop());
+        fallbackStream = null;
+      }
+      video.style.display = "none";
+      fallbackMode = false;
+    }
+
+    async function startFallbackCamera() {
+      try {
+        if (xrSession) await xrSession.end();
+        await stopFallback();
+
+        fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
         });
 
-        function requestDeleteAbility(event, id) {
-            event.stopPropagation(); // Impede accordion de abrir/fechar
-            openConfirm(
-                'Deletar esta ação/habilidade permanentemente do seu grimório?',
-                () => {
-                    abilities = abilities.filter(a => a.id !== id);
-                    saveData();
-                    updateUI();
-                }
-            );
-        }
+        video.srcObject = fallbackStream;
+        video.style.display = "block";
+        fallbackMode = true;
 
-        // --- DOWNLOAD TXT (GERAÇÃO) ---
-        function downloadCurrentCharTxt() {
-            const char = characters.find(c => c.id === selectedCharId);
-            if (!char) return;
+        // Cena simulada: NÃO detecta o chão real.
+        scene.background = null;
+        camera.position.set(0, 1.25, 2.6);
+        camera.lookAt(0, 0.45, 0);
 
-            const charAbilities = abilities.filter(a => a.characterId === selectedCharId);
-            
-            let txt = `=========================================\n`;
-            txt += `PERSONAGEM: ${char.name.toUpperCase()}\n`;
-            txt += `TOTAL DE HABILIDADES: ${charAbilities.length}\n`;
-            txt += `=========================================\n\n`;
+        creatureRoot.position.set(0, -0.58, -0.1);
+        creatureRoot.scale.setScalar(1.15);
+        creatureRoot.visible = true;
 
-            if (charAbilities.length === 0) {
-                txt += `Nenhuma habilidade cadastrada.\n`;
-            } else {
-                charAbilities.forEach((ab, index) => {
-                    const val = (field) => (ab[field] && ab[field].trim() !== '') ? ab[field] : '-';
-                    
-                    // Nota: No arquivo .txt é seguro usar "---" pois blocos de notas não quebram layout
-                    txt += `[ AÇÃO ${index + 1} - ${val('tipo').toUpperCase()} ]\n`;
-                    txt += `Atualizado em: ${ab.updatedAt || 'Data não registrada'}\n`;
-                    txt += `Nome: ${val('nome')}\n`;
-                    txt += `Círculo/Nível: ${val('circulo')}\n`;
-                    txt += `Custo de Mana: ${val('custoMana')}\n`;
-                    txt += `Execução: ${val('execucao')}\n`;
-                    txt += `Alcance: ${val('alcance')}\n`;
-                    txt += `Alvo: ${val('alvo')}\n`;
-                    txt += `Duração: ${val('duracao')}\n`;
-                    txt += `Resistência: ${val('resistencia')}\n\n`;
-                    
-                    txt += `  > Combate\n`;
-                    txt += `  Acerto: ${val('acerto')}\n`;
-                    txt += `  Crítico: ${val('critico')}\n`;
-                    txt += `  Dano: ${val('dano')}\n`;
-                    txt += `  Dano Sem Mana: ${val('danoSemMana')}\n\n`;
-                    
-                    txt += `  > Medicinas\n`;
-                    txt += `  Dado Vida: ${val('dadoVida')}\n`;
-                    txt += `  Dado Mana: ${val('dadoMana')}\n\n`;
-                    
-                    txt += `  > Textos\n`;
-                    txt += `  Descrição: ${val('descricao')}\n`;
-                    txt += `  Aprimorar: ${val('aprimorar')}\n`;
-                    txt += `  Verdadeiro: ${val('verdadeiro')}\n\n`;
-                    txt += `-----------------------------------------\n\n`;
-                });
-            }
+        reticle.visible = false;
+        setStatus("Câmera ativa em modo demonstração. Sem ancoragem real no chão.", "warn");
+        modeBadge.textContent = "Modo: câmera simulada";
+        resetObject.style.display = "none";
+        exitAR.style.display = "inline-flex";
+        startAR.style.display = "inline-flex";
+      } catch (err) {
+        console.error(err);
+        setStatus("A câmera não pôde ser aberta. Verifique a permissão e o HTTPS.", "bad");
+      }
+    }
 
-            const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Grimorio_${char.name.replace(/\s+/g, '_')}.txt`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+    async function exitEverything() {
+      if (xrSession) {
+        await xrSession.end();
+      }
+      await stopFallback();
 
-        // --- INICIALIZAÇÃO ---
-        updateUI();
-    </script>
+      creatureRoot.scale.setScalar(1);
+      creatureRoot.visible = false;
+      camera.position.set(0, 0, 0);
+      camera.rotation.set(0, 0, 0);
+
+      exitAR.style.display = "none";
+      startAR.style.display = "inline-flex";
+      fallbackBtn.style.display = navigator.xr ? "none" : "inline-flex";
+
+      await checkARSupport();
+    }
+
+    startAR.addEventListener("click", startXRSession);
+    exitAR.addEventListener("click", exitEverything);
+    resetObject.addEventListener("click", resetPlacement);
+    fallbackBtn.addEventListener("click", startFallbackCamera);
+    closeUnsupported.addEventListener("click", () => {
+      unsupported.style.display = "none";
+    });
+
+    addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // Também permite tocar diretamente no canvas para posicionar.
+    renderer?.domElement?.addEventListener?.("click", () => {
+      if (xrSession && reticle.visible && !creaturePlaced) placeCreature();
+    });
+
+    initThree();
+
+    // Após initThree, o canvas existe.
+    renderer.domElement.addEventListener("click", () => {
+      if (xrSession && reticle.visible && !creaturePlaced) placeCreature();
+    });
+
+    checkARSupport();
+  </script>
 </body>
 </html>
